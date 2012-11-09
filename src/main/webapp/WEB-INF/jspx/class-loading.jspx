@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jsp:root xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:c="http://java.sun.com/jsp/jstl/core"
+          xmlns:jsp="http://java.sun.com/JSP/Page"
+          xmlns:liferay-aui="http://liferay.com/tld/aui"
+          xmlns:portlet="http://java.sun.com/portlet"
+          xmlns:tags="urn:jsptagdir:/WEB-INF/tags"
+          version="2.0">
+
+    <tags:tabs currentTab="class-loading"/>
+
+    <c:set var="namespace">
+        <portlet:namespace/>
+    </c:set>
+
+    <c:forEach var="historyEntry" items="${history}">
+
+        <c:set var="nodeId" value="${historyEntry.key}"/>
+        <c:set var="nodeHistory" value="${historyEntry.value}"/>
+
+        <c:if test="${not empty nodeHistory['class-loading']}">
+
+            <c:if test="${nodeId ne '~'}">
+                <h2>${nodeId}</h2>
+            </c:if>
+
+            <p class="cm-label">Class Loader Activity</p>
+            <div id="${namespace}_chart" class="cm-chart">
+                <!-- Chart goes here -->
+            </div>
+
+            <portlet:resourceURL var="jsonUrl">
+                <portlet:param name="nodeId" value="${nodeId}"/>
+                <portlet:param name="monitorName" value="class-loading"/>
+            </portlet:resourceURL>
+
+            <liferay-aui:script use="cluster-monitor">
+                <![CDATA[
+                var mapperFn = function (data) {
+                    var mapped = [];
+                    for (var timestamp in data) {
+                        mapped.push({
+                            "Time" : new Date(parseInt(timestamp)),
+                            "Loaded Classes": data[timestamp]["loadedClassCount"],
+                            "Total Loaded Classes": data[timestamp]["totalLoadedClassCount"]
+                        });
+                    }
+                    return mapped;
+                };
+
+                A.ClusterMonitor.chart({
+                                           mapper : mapperFn,
+                                           source : "${jsonUrl}",
+                                           target : "#${namespace}_chart"
+                                       });
+                ]]>
+            </liferay-aui:script>
+
+        </c:if>
+
+    </c:forEach>
+
+</jsp:root>

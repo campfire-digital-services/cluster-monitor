@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jsp:root xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:c="http://java.sun.com/jsp/jstl/core"
+          xmlns:jsp="http://java.sun.com/JSP/Page"
+          xmlns:liferay-aui="http://liferay.com/tld/aui"
+          xmlns:portlet="http://java.sun.com/portlet"
+          xmlns:tags="urn:jsptagdir:/WEB-INF/tags"
+          version="2.0">
+
+    <tags:tabs currentTab="memory"/>
+
+    <c:set var="namespace">
+        <portlet:namespace/>
+    </c:set>
+
+    <c:forEach var="historyEntry" items="${history}">
+
+        <c:set var="nodeId" value="${historyEntry.key}"/>
+        <c:set var="nodeHistory" value="${historyEntry.value}"/>
+
+        <c:if test="${not empty nodeHistory['memory']}">
+
+            <c:if test="${nodeId ne '~'}">
+                <h2>${nodeId}</h2>
+            </c:if>
+
+            <p class="cm-label">Heap Usage</p>
+            <div id="${namespace}_chart_heap" class="cm-chart">
+                <!-- Chart goes here -->
+            </div>
+
+            <p class="cm-label">Non-Heap Usage</p>
+            <div id="${namespace}_chart_nonHeap" class="cm-chart">
+                <!-- Chart goes here -->
+            </div>
+
+            <portlet:resourceURL var="jsonUrl">
+                <portlet:param name="nodeId" value="${nodeId}"/>
+                <portlet:param name="monitorName" value="memory"/>
+            </portlet:resourceURL>
+
+            <liferay-aui:script use="cluster-monitor">
+                <![CDATA[
+                var mapperFn = function (data, type) {
+                    var mapped = [];
+                    for (var timestamp in data) {
+                        var item = {
+                            "Time"      : new Date(parseInt(timestamp)),
+                            "Initial"   : data[timestamp][type]["init"],
+                            "Used"      : data[timestamp][type]["used"],
+                            "Committed" : data[timestamp][type]["committed"],
+                            "Maximum"   : data[timestamp][type]["max"]
+                        };
+                        mapped.push(item);
+                    }
+                    return mapped;
+                };
+
+                var heapMapperFn = function (data) {
+                    return mapperFn(data, "heap");
+                };
+
+                A.ClusterMonitor.chart({
+                                           mapper : heapMapperFn,
+                                           source : "${jsonUrl}",
+                                           target : "#${namespace}_chart_heap"
+                                       });
+
+                var nonHeapMapperFn = function (data) {
+                    return mapperFn(data, "nonHeap");
+                };
+
+                A.ClusterMonitor.chart({
+                                           mapper : nonHeapMapperFn,
+                                           source : "${jsonUrl}",
+                                           target : "#${namespace}_chart_nonHeap"
+                                       });
+                ]]>
+            </liferay-aui:script>
+
+        </c:if>
+
+    </c:forEach>
+
+</jsp:root>

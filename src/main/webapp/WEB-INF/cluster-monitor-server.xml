@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <context:property-placeholder location="/WEB-INF/cluster-monitor.properties" system-properties-mode="OVERRIDE"/>
+
+    <bean id="jsonFactory" class="com.liferay.portal.kernel.json.JSONFactoryUtil" factory-method="getJSONFactory"/>
+
+    <bean id="trigger.base" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" abstract="true">
+        <constructor-arg index="1" name="groupName" value="${trigger.groupName}"/>
+    </bean>
+
+    <bean id="trigger.class-loading" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${class-loading.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="trigger.compilation" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${compilation.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="trigger.garbage-collector" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${garbage-collector.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="trigger.memory" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${memory.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="trigger.operating-system" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${operating-system.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="trigger.runtime" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${runtime.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="trigger.thread" class="com.liferay.portal.kernel.scheduler.IntervalTrigger" parent="trigger.base">
+        <constructor-arg index="0" name="jobName" value="${thread.monitor.name}"/>
+        <constructor-arg index="2" name="interval" value="15000"/>
+    </bean>
+
+    <bean id="schedulerConfigurator" class="au.com.permeance.clusterMonitor.schedule.ClusterMonitorSchedulerConfigurator" destroy-method="destroy" init-method="afterPropertiesSet">
+        <constructor-arg index="0" name="destinationName" value="${destination.name.scheduler}"/>
+        <constructor-arg index="1" name="triggers">
+            <map key-type="java.lang.String" value-type="com.liferay.portal.kernel.scheduler.Trigger">
+                <entry key="${class-loading.monitor.name}" value-ref="trigger.class-loading"/>
+                <entry key="${compilation.monitor.name}" value-ref="trigger.compilation"/>
+                <entry key="${garbage-collector.monitor.name}" value-ref="trigger.garbage-collector"/>
+                <entry key="${memory.monitor.name}" value-ref="trigger.memory"/>
+                <entry key="${operating-system.monitor.name}" value-ref="trigger.operating-system"/>
+                <entry key="${runtime.monitor.name}" value-ref="trigger.runtime"/>
+                <entry key="${thread.monitor.name}" value-ref="trigger.thread"/>
+            </map>
+        </constructor-arg>
+    </bean>
+
+    <bean id="destination" class="com.liferay.portal.kernel.messaging.ParallelDestination" destroy-method="close" init-method="afterPropertiesSet">
+        <property name="name" value="${destination.name.scheduler}"/>
+    </bean>
+
+    <bean id="clusterBridgeMessageListener" class="com.liferay.portal.kernel.cluster.messaging.ClusterBridgeMessageListener">
+        <property name="priority" value="${cluster.link.priority}"/>
+    </bean>
+
+    <bean id="clusterNode" class="com.liferay.portal.kernel.cluster.ClusterExecutorUtil" factory-method="getLocalClusterNode"/>
+
+    <bean id="monitor.class-loading" class="au.com.permeance.clusterMonitor.monitor.ClassLoadingMonitor">
+        <constructor-arg index="0" name="classLoadingMXBean">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getClassLoadingMXBean"/>
+        </constructor-arg>
+        <constructor-arg index="1" name="jsonFactory" ref="jsonFactory"/>
+    </bean>
+
+    <bean id="monitor.compilation" class="au.com.permeance.clusterMonitor.monitor.CompilationMonitor">
+        <constructor-arg index="0" name="compilationMXBean">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getCompilationMXBean"/>
+        </constructor-arg>
+        <constructor-arg index="1" name="jsonFactory" ref="jsonFactory"/>
+    </bean>
+
+    <bean id="monitor.garbage-collector" class="au.com.permeance.clusterMonitor.monitor.GarbageCollectorMonitor">
+        <constructor-arg index="0" name="garbageCollectorMXBeans">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getGarbageCollectorMXBeans"/>
+        </constructor-arg>
+        <constructor-arg index="1" name="jsonFactory" ref="jsonFactory"/>
+    </bean>
+
+    <bean id="monitor.memory" class="au.com.permeance.clusterMonitor.monitor.MemoryMonitor">
+        <constructor-arg index="0" name="jsonFactory" ref="jsonFactory"/>
+        <constructor-arg index="1" name="memoryMXBean">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getMemoryMXBean"/>
+        </constructor-arg>
+    </bean>
+
+    <bean id="monitor.operating-system" class="au.com.permeance.clusterMonitor.monitor.OperatingSystemMonitor">
+        <constructor-arg index="0" name="jsonFactory" ref="jsonFactory"/>
+        <constructor-arg index="1" name="operatingSystemMXBean">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getOperatingSystemMXBean"/>
+        </constructor-arg>
+    </bean>
+
+    <bean id="monitor.runtime" class="au.com.permeance.clusterMonitor.monitor.RuntimeMonitor">
+        <constructor-arg index="0" name="jsonFactory" ref="jsonFactory"/>
+        <constructor-arg index="1" name="runtimeMXBean">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getRuntimeMXBean"/>
+        </constructor-arg>
+    </bean>
+
+    <bean id="monitor.thread" class="au.com.permeance.clusterMonitor.monitor.ThreadMonitor">
+        <constructor-arg index="0" name="jsonFactory" ref="jsonFactory"/>
+        <constructor-arg index="1" name="threadMXBean">
+            <bean class="java.lang.management.ManagementFactory" factory-method="getThreadMXBean"/>
+        </constructor-arg>
+    </bean>
+
+    <bean id="messageSender" class="com.liferay.portal.kernel.messaging.MessageBusUtil" factory-method="getMessageSender"/>
+
+    <bean id="statusSender" class="com.liferay.portal.kernel.messaging.sender.DefaultSingleDestinationMessageSender">
+        <constructor-arg index="0" name="destinationName" value="${destination.name.status}"/>
+        <constructor-arg index="1" name="messageSender" ref="messageSender"/>
+    </bean>
+
+    <bean id="monitorDispatcher" class="au.com.permeance.clusterMonitor.monitor.MonitorDispatcher">
+        <constructor-arg index="0" name="clusterNode" ref="clusterNode"/>
+        <constructor-arg index="1" name="jsonFactory" ref="jsonFactory"/>
+        <constructor-arg index="2" name="monitors">
+            <map key-type="java.lang.String" value-type="au.com.permeance.clusterMonitor.monitor.Monitor">
+                <entry key="${class-loading.monitor.name}" value-ref="monitor.class-loading"/>
+                <entry key="${compilation.monitor.name}" value-ref="monitor.compilation"/>
+                <entry key="${garbage-collector.monitor.name}" value-ref="monitor.garbage-collector"/>
+                <entry key="${memory.monitor.name}" value-ref="monitor.memory"/>
+                <entry key="${operating-system.monitor.name}" value-ref="monitor.operating-system"/>
+                <entry key="${runtime.monitor.name}" value-ref="monitor.runtime"/>
+                <entry key="${thread.monitor.name}" value-ref="monitor.thread"/>
+            </map>
+        </constructor-arg>
+        <property name="responseSender" ref="messageSender"/>
+        <property name="statusSender" ref="statusSender"/>
+    </bean>
+
+    <bean id="messagingConfigurator" class="com.liferay.portal.kernel.messaging.config.PluginMessagingConfigurator" destroy-method="destroy" init-method="afterPropertiesSet">
+        <property name="destinations">
+            <list value-type="com.liferay.portal.kernel.messaging.Destination">
+                <ref bean="destination"/>
+            </list>
+        </property>
+        <property name="messageListeners">
+            <map key-type="java.lang.String" value-type="java.util.List">
+                <entry key="${destination.name.scheduler}">
+                    <list value-type="com.liferay.portal.kernel.messaging.MessageListener">
+                        <ref bean="clusterBridgeMessageListener"/>
+                        <ref bean="monitorDispatcher"/>
+                    </list>
+                </entry>
+            </map>
+        </property>
+    </bean>
+
+</beans>

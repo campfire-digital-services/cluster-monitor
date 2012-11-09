@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+                           http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+    <context:property-placeholder location="/WEB-INF/cluster-monitor.properties" system-properties-mode="OVERRIDE"/>
+
+    <mvc:annotation-driven/>
+
+    <bean id="ttlMonitorEventListener" class="au.com.permeance.clusterMonitor.history.TTLMonitorEventListener">
+        <constructor-arg index="0" name="defaultTTL" value="${default.history.ttl}"/>
+        <constructor-arg index="1" name="monitorTTLs">
+            <map key-type="java.lang.String" value-type="java.lang.Long">
+                <entry key="class-loading" value="${class-loading.history.ttl}"/>
+                <entry key="compilation" value="${compilation.history.ttl}"/>
+                <entry key="garbage-collector" value="${garbage-collector.history.ttl}"/>
+                <entry key="memory" value="${memory.history.ttl}"/>
+                <entry key="operating-system" value="${operating-system.history.ttl}"/>
+                <entry key="runtime" value="${runtime.history.ttl}"/>
+                <entry key="thread" value="${thread.history.ttl}"/>
+            </map>
+        </constructor-arg>
+    </bean>
+
+    <bean id="sizeMonitorEventListener" class="au.com.permeance.clusterMonitor.history.SizeMonitorEventListener">
+        <constructor-arg index="0" name="defaultSize" value="500"/>
+        <constructor-arg index="1" name="monitorSizes">
+            <map key-type="java.lang.String" value-type="java.lang.Integer">
+                <entry key="class-loading" value="${class-loading.history.size}"/>
+                <entry key="compilation" value="${compilation.history.size}"/>
+                <entry key="garbage-collector" value="${garbage-collector.history.size}"/>
+                <entry key="memory" value="${memory.history.size}"/>
+                <entry key="operating-system" value="${operating-system.history.size}"/>
+                <entry key="runtime" value="${runtime.history.size}"/>
+                <entry key="thread" value="${thread.history.size}"/>
+            </map>
+        </constructor-arg>
+    </bean>
+
+    <bean id="pruneMonitorEventListener" class="au.com.permeance.clusterMonitor.history.PruneMonitorEventListener"/>
+
+    <bean id="readWriteLockInvoker" class="au.com.permeance.clusterMonitor.history.ReadWriteLockInvoker"/>
+
+    <bean id="monitorTracker" class="au.com.permeance.clusterMonitor.history.MonitorTracker">
+        <constructor-arg index="0" name="eventListeners">
+            <list value-type="au.com.permeance.clusterMonitor.history.MonitorEventListener">
+                <ref bean="ttlMonitorEventListener"/>
+                <ref bean="sizeMonitorEventListener"/>
+                <ref bean="pruneMonitorEventListener"/>
+            </list>
+        </constructor-arg>
+        <constructor-arg index="1" name="readWriteLockInvoker" ref="readWriteLockInvoker"/>
+    </bean>
+
+    <bean id="destination" class="com.liferay.portal.kernel.messaging.ParallelDestination" destroy-method="close" init-method="afterPropertiesSet">
+        <property name="name" value="${destination.name.status}"/>
+    </bean>
+
+    <bean id="clusterBridgeMessageListener" class="com.liferay.portal.kernel.cluster.messaging.ClusterBridgeMessageListener">
+        <property name="priority" value="${cluster.link.priority}"/>
+    </bean>
+
+    <bean id="monitorTrackerMessageListener" class="au.com.permeance.clusterMonitor.history.MonitorTrackerMessageListener">
+        <constructor-arg index="0" name="monitoryHistoryWriter" ref="monitorTracker"/>
+    </bean>
+
+    <bean id="messagingConfigurator" class="com.liferay.portal.kernel.messaging.config.PluginMessagingConfigurator" destroy-method="destroy" init-method="afterPropertiesSet">
+        <property name="destinations">
+            <list value-type="com.liferay.portal.kernel.messaging.Destination">
+                <ref bean="destination"/>
+            </list>
+        </property>
+        <property name="messageListeners">
+            <map key-type="java.lang.String" value-type="java.util.List">
+                <entry key="${destination.name.status}">
+                    <list value-type="com.liferay.portal.kernel.messaging.MessageListener">
+                        <ref bean="monitorTrackerMessageListener"/>
+                        <ref bean="clusterBridgeMessageListener"/>
+                    </list>
+                </entry>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="jsonSerializer" class="com.liferay.portal.kernel.json.JSONFactoryUtil" factory-method="createJSONSerializer"/>
+
+    <bean id="clusterMonitorController" class="au.com.permeance.clusterMonitor.controller.ClusterMonitorController">
+        <constructor-arg index="0" name="defaultTab" value="${class-loading.monitor.name}"/>
+        <constructor-arg index="1" name="jsonSerializer" ref="jsonSerializer"/>
+        <constructor-arg index="2" name="monitorHistoryProvider" ref="monitorTracker"/>
+        <constructor-arg index="3" name="monitorTabs">
+            <map key-type="java.lang.String" value-type="java.lang.String">
+                <entry key="${class-loading.monitor.name}" value="${class-loading.monitor.display}"/>
+                <entry key="${compilation.monitor.name}" value="${compilation.monitor.display}"/>
+                <entry key="${garbage-collector.monitor.name}" value="${garbage-collector.monitor.display}"/>
+                <entry key="${memory.monitor.name}" value="${memory.monitor.display}"/>
+                <entry key="${operating-system.monitor.name}" value="${operating-system.monitor.display}"/>
+                <entry key="${runtime.monitor.name}" value="${runtime.monitor.display}"/>
+                <entry key="${thread.monitor.name}" value="${thread.monitor.display}"/>
+            </map>
+        </constructor-arg>
+    </bean>
+
+    <bean id="viewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/jspx/"/>
+        <property name="suffix" value=".jspx"/>
+    </bean>
+
+</beans>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jsp:root xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:c="http://java.sun.com/jsp/jstl/core"
+          xmlns:jsp="http://java.sun.com/JSP/Page"
+          xmlns:liferay-ui="http://liferay.com/tld/ui"
+          xmlns:portlet="http://java.sun.com/portlet"
+          xmlns:tags="urn:jsptagdir:/WEB-INF/tags"
+          version="2.0">
+
+    <jsp:directive.page import="au.com.permeance.clusterMonitor.util.JSONObjectUtil"/>
+    <jsp:directive.page import="com.liferay.portal.kernel.json.JSONObject"/>
+    <jsp:directive.page import="com.liferay.portal.kernel.util.KeyValuePair"/>
+    <jsp:directive.page import="java.util.List"/>
+    <jsp:directive.page import="java.util.SortedMap"/>
+
+    <tags:tabs currentTab="runtime"/>
+
+    <c:set var="namespace">
+        <portlet:namespace/>
+    </c:set>
+
+    <c:forEach var="historyEntry" items="${history}">
+
+        <c:set var="nodeId" value="${historyEntry.key}"/>
+        <c:set var="nodeHistory" value="${historyEntry.value}"/>
+
+        <c:if test="${not empty nodeHistory['runtime']}">
+
+            <c:if test="${nodeId ne '~'}">
+                <h2>${nodeId}</h2>
+            </c:if>
+
+            <jsp:scriptlet>
+                <![CDATA[
+                final SortedMap<String, SortedMap<Long, JSONObject>> nodeHistory = (SortedMap<String, SortedMap<Long, JSONObject>>) pageContext.getAttribute("nodeHistory");
+                final SortedMap<Long, JSONObject> monitorHistory = nodeHistory.get("runtime");
+                final JSONObject jsonObject = monitorHistory.get(monitorHistory.lastKey());
+                final List<KeyValuePair> runtimeProperties = JSONObjectUtil.asKeyValues(jsonObject);
+                pageContext.setAttribute("runtimeProperties", runtimeProperties);
+                ]]>
+            </jsp:scriptlet>
+
+            <p class="cm-label">Runtime Properties</p>
+
+            <div class="cm-table">
+                <liferay-ui:search-container>
+                    <liferay-ui:search-container-results results="${runtimeProperties}"/>
+                    <liferay-ui:search-container-row className="com.liferay.portal.kernel.util.KeyValuePair">
+                        <liferay-ui:search-container-column-text name="Name" property="key"/>
+                        <liferay-ui:search-container-column-text name="Value" property="value"/>
+                    </liferay-ui:search-container-row>
+                    <liferay-ui:search-iterator paginate="false"/>
+                </liferay-ui:search-container>
+            </div>
+        </c:if>
+
+    </c:forEach>
+
+</jsp:root>

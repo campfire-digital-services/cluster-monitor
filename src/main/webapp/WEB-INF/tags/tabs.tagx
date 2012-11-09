@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jsp:root xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:jsp="http://java.sun.com/JSP/Page"
+          xmlns:liferay-portlet="http://liferay.com/tld/portlet"
+          xmlns:liferay-ui="http://liferay.com/tld/ui"
+          version="2.0">
+
+    <jsp:directive.tag body-content="empty"
+                       display-name="tabs"/>
+
+    <jsp:directive.attribute description="the current tab being viewed"
+                             name="currentTab"
+                             required="true"
+                             rtexprvalue="true"
+                             type="java.lang.String"/>
+
+    <liferay-portlet:renderURL varImpl="renderURL"/>
+
+    <liferay-ui:tabs names="${tabNames}"
+                     param="currentTab"
+                     portletURL="${renderURL}"
+                     tabsValues="${tabValues}"
+                     value="${currentTab}"/>
+
+</jsp:root>

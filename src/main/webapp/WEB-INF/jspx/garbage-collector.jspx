@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<jsp:root xmlns="http://www.w3.org/1999/xhtml"
+          xmlns:c="http://java.sun.com/jsp/jstl/core"
+          xmlns:jsp="http://java.sun.com/JSP/Page"
+          xmlns:liferay-aui="http://liferay.com/tld/aui"
+          xmlns:portlet="http://java.sun.com/portlet"
+          xmlns:tags="urn:jsptagdir:/WEB-INF/tags"
+          version="2.0">
+
+    <tags:tabs currentTab="garbage-collector"/>
+
+    <c:set var="namespace">
+        <portlet:namespace/>
+    </c:set>
+
+    <c:forEach var="historyEntry" items="${history}">
+
+        <c:set var="nodeId" value="${historyEntry.key}"/>
+        <c:set var="nodeHistory" value="${historyEntry.value}"/>
+
+        <c:if test="${not empty nodeHistory['garbage-collector']}">
+
+            <c:if test="${nodeId ne '~'}">
+                <h2>${nodeId}</h2>
+            </c:if>
+
+            <p class="cm-label">Garbage Collector Activity</p>
+            <div id="${namespace}_chart" class="cm-chart">
+                <!-- Chart goes here -->
+            </div>
+
+            <portlet:resourceURL var="jsonUrl">
+                <portlet:param name="nodeId" value="${nodeId}"/>
+                <portlet:param name="monitorName" value="garbage-collector"/>
+            </portlet:resourceURL>
+
+            <liferay-aui:script use="cluster-monitor">
+                <![CDATA[
+                var mapperFn = function (data) {
+                    var mapped = [];
+                    for (var timestamp in data) {
+                        var item = {
+                            "Time" : new Date(parseInt(timestamp))
+                        };
+                        for (var key in data[timestamp]) {
+                            item[key + " Collection Count"] = data[timestamp][key]["collectionCount"];
+                            item[key + " Collection Time"] = data[timestamp][key]["collectionTime"];
+                        }
+                        mapped.push(item);
+                    }
+                    return mapped;
+                };
+
+                A.ClusterMonitor.chart({
+                                           mapper : mapperFn,
+                                           source : "${jsonUrl}",
+                                           target : "#${namespace}_chart"
+                                       });
+                ]]>
+            </liferay-aui:script>
+
+        </c:if>
+
+    </c:forEach>
+
+</jsp:root>
